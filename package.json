@@ -1,6 +1,6 @@
 {
   "name": "subturn",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Run subagents in any coding agent you have installed, from any MCP client. You pick the harness and model, it handles the rest.",
   "license": "MIT",
   "repository": {
