@@ -7,9 +7,10 @@
 // the plugin's launch() actually runs in. It is also where the native
 // session id becomes the session's address: on turn 1 it publishes
 // sessions/<id> as a symlink to the staging dir the moment the harness
-// reports its id (that write is what unblocks the caller's spawn), and it
-// swaps the symlink for the real dir when the turn ends. A rotated id on a
-// resumed turn is absorbed the same way (rename + alias symlink).
+// reports its id, then writes the id into the record (that write is what
+// unblocks the caller's spawn), and it swaps the symlink for the real dir
+// when the turn ends. A rotated id on a resumed turn is absorbed the same
+// way (rename + alias symlink).
 //
 // Usage: node supervisor.js <sessionDir>
 
@@ -154,16 +155,17 @@ async function main(): Promise<void> {
       ctx.nativeSessionId = id; // keep current for plugin.finalize (parking)
       if (isFirstTurn && nativeId === "") {
         nativeId = id;
-        const current = readRecordFrom(dir) ?? record;
-        current.session_id = id;
-        writeRecordTo(dir, current);
-        // Publish the id: this symlink is what makes the session addressable
-        // and what unblocks the caller's spawn (it polls the record).
+        // Address before announcement: sessions/<id> must resolve before the
+        // record carries the id, because the id in the record is what returns
+        // the caller's spawn, and its very next call may be inspect or await.
         try {
           linkStaged(id, dir);
         } catch (e) {
           appendEventTo(dir, { type: "link_staged_failed", error: String(e) });
         }
+        const current = readRecordFrom(dir) ?? record;
+        current.session_id = id;
+        writeRecordTo(dir, current);
         return;
       }
       if (!isFirstTurn && id !== nativeId && rotatedFrom === null) {
