@@ -1,0 +1,53 @@
+{
+  "name": "subturn",
+  "version": "0.1.0",
+  "description": "Run subagents in any coding agent you have installed, from any MCP client. You pick the harness and model, it handles the rest.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eshatalov/subturn.git"
+  },
+  "homepage": "https://github.com/eshatalov/subturn#readme",
+  "bugs": {
+    "url": "https://github.com/eshatalov/subturn/issues"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "subagents",
+    "coding-agents",
+    "codex",
+    "claude-code",
+    "grok",
+    "opencode",
+    "acp"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "subturn": "dist/faces/cli.js"
+  },
+  "main": "dist/faces/mcp.js",
+  "files": [
+    "dist",
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.local.template.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "node --test test/*.test.ts",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,34 @@
+# Publishes to npm when a version tag is pushed: `npm version patch` locally
+# makes the commit and the tag, `git push --follow-tags` triggers this.
+# Auth is npm trusted publishing (OIDC): no token in the repo. The package's
+# trusted publisher on npmjs.com must name this file.
+name: publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm install -g npm@latest   # trusted publishing needs npm 11.5+
+      - name: tag must match package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p 'require("./package.json").version')"
+          test "$tag" = "$version" || { echo "tag v$tag != package.json $version"; exit 1; }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm publish --access public
