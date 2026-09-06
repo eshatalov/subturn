@@ -1,0 +1,5 @@
+# Auto-generated release notes: PRs labeled `chore` are housekeeping and stay out.
+changelog:
+  exclude:
+    labels:
+      - chore
