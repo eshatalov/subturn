@@ -14,11 +14,17 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import { createRequire } from "node:module";
+
 import { verbs, instructions } from "./interface.ts";
+
+// The version we advertise in the MCP handshake is the one from package.json,
+// so a release bump is one edit. Same relative path from src/ and dist/.
+const { version } = createRequire(import.meta.url)("../../package.json") as { version: string };
 
 export function buildServer(): Server {
   const server = new Server(
-    { name: "subturn", version: "0.1.0" },
+    { name: "subturn", version },
     { capabilities: { tools: {} }, instructions },
   );
 
