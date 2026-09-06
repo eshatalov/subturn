@@ -1,5 +1,6 @@
-# Publishes to npm when a version tag is pushed: `npm version patch` locally
-# makes the commit and the tag, `git push --follow-tags` triggers this.
+# Stages a release on npm when a version tag is pushed: `npm version patch` locally
+# makes the commit and the tag, `git push --follow-tags` triggers this. The staged
+# version goes live after `npm stage approve <stage-id>` (2FA) or Approve on npmjs.com.
 # Auth is npm trusted publishing (OIDC): no token in the repo. The package's
 # trusted publisher on npmjs.com must name this file.
 name: publish
@@ -31,4 +32,4 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm publish --access public
+      - run: npm stage publish --access public
