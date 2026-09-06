@@ -252,7 +252,8 @@ export function createStaging(record: SessionRecord, prompt: string): string {
 
 /** Publish a staged session under its native id: sessions/<id> becomes a
  * symlink to the staging dir. Called by the supervisor the moment the
- * harness reports its id; the record must already carry it. */
+ * harness reports its id, before the record carries it: the id is only
+ * handed out (spawn returns on the record) once it already resolves. */
 export function linkStaged(nativeId: string, stagedDir: string): void {
   mkdirSync(sessionsDir(), { recursive: true });
   const link = sessionDir(nativeId);
