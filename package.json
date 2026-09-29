@@ -24,7 +24,7 @@
   ],
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "bin": {
     "subturn": "dist/faces/cli.js"

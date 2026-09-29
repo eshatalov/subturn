@@ -74,8 +74,8 @@ function extractUsage(candidates: unknown[]): Usage | undefined {
     const out = c["output_tokens"] ?? c["outputTokens"];
     const total = c["total_tokens"] ?? c["totalTokens"];
     const cacheRead = c["cache_read_input_tokens"] ?? c["cachedReadTokens"] ?? c["cache_read_tokens"];
-    const cacheCreate = c["cache_creation_input_tokens"] ?? c["cacheCreationTokens"];
-    const reasoning = c["reasoning_tokens"] ?? c["reasoningTokens"];
+    const cacheCreate = c["cache_creation_input_tokens"] ?? c["cacheCreationTokens"] ?? c["cachedWriteTokens"];
+    const reasoning = c["reasoning_tokens"] ?? c["reasoningTokens"] ?? c["thoughtTokens"];
     const cost = c["cost_usd"] ?? c["costUsd"] ?? c["total_cost_usd"];
     if (typeof inp === "number") usage.input_tokens = inp;
     if (typeof out === "number") usage.output_tokens = out;
