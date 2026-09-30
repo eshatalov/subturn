@@ -11,7 +11,7 @@
 // all tool executions), plus Subturn's ACP client's allow-everything
 // permission handler as a backstop.
 //
-// Past-ACP quirk (observed live): grok can complete a
+// Quirk: grok can complete a
 // prompt via the private `_x.ai/session/prompt_complete` notification
 // without ever answering the standard session/prompt request. The turn
 // races both; the promptId rides in _meta.promptId/_meta.requestId.
@@ -92,10 +92,9 @@ export const grokPlugin: Plugin = {
       ],
       grokCompletionRace: true,
       extNotifications: {
-        // Grok's private session channel (validated live 2026-09-02):
+        // Grok's private session channel:
         //  - `model_changed` fires when the server re-selects the model
-        //    AFTER session/new (a launch campaign flipped grok-4.5 to
-        //    grok-4.6 despite `-m`); the ack must follow.
+        //    AFTER session/new, even against `-m`; the ack must follow.
         //  - `turn_completed` carries the turn's usage (camelCase) and
         //    `modelUsage` keyed by the model that actually served it.
         "_x.ai/session_notification": (params, sink) => {
