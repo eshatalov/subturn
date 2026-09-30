@@ -77,7 +77,7 @@ const specs: VerbSpec[] = [
       type: "object",
       properties: {
         harness: str(`One of ${harnessList()}.`),
-        model: str("Model id as the harness names it, e.g. gpt-5.6-sol, zai-coding-plan/glm-5.3, grok-4.6."),
+        model: str("Model id as the harness names it, e.g. gpt-6.1-sol, zai-coding-plan/glm-5.3, grok-4.6."),
         effort: str("Reasoning effort as the harness names it, e.g. low, medium, high."),
         prompt: str("What you want done."),
         cwd: str("Absolute directory the subagent works in. It can write anything there."),

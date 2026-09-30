@@ -23,7 +23,7 @@ const harness = process.env["SUBTURN_LIVE_HARNESS"] ?? "opencode";
 
 const cheapBundles: Record<string, { model: string; effort: string }> = {
   claude: { model: "claude-haiku-4-5-20251001", effort: "low" },
-  codex: { model: "gpt-5.3-codex-spark", effort: "low" },
+  codex: { model: "gpt-6-luna", effort: "low" },
   grok: { model: "grok-4.6", effort: "low" },
   opencode: { model: "zai-coding-plan/glm-5.3-flash", effort: "low" },
 };
