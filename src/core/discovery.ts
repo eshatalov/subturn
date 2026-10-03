@@ -1,22 +1,32 @@
 // core/discovery.ts — discovery is a mechanism, not a tool (AGENTS.md).
-// A persisted per-harness pin (binary path + version) makes launch admit and
-// spawn without a PATH hunt; the cache self-heals — a stale or missing entry
-// triggers one probe, never a refusal.
+// Every copy of the binary on PATH and in the well-known dirs is a
+// candidate; the newest `--version` is launched. The persisted per-harness
+// pin is keyed on that candidate set (paths, mtimes, sizes): while the set
+// is unchanged, admission reuses the pin without a probe.
 
 import { spawn } from "node:child_process";
-import { accessSync, constants, mkdirSync, readFileSync, statSync, writeFileSync, renameSync } from "node:fs";
+import { accessSync, constants, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
 import { stateDir } from "./state.ts";
 import type { DetectHints } from "../plugins/types.ts";
 
+export interface Candidate {
+  binPath: string;
+  /** First line of `--version`; "unknown" when it printed nothing. */
+  version: string;
+  /** mtime + size of the file the path resolves to. */
+  fingerprint: string;
+}
+
 export interface Pin {
   binPath: string;
   version: string;
-  /** mtime of the binary at probe time — a rewritten binary invalidates. */
-  binMtimeMs: number;
   checkedAt: string;
+  /** Every distinct executable found, in hunt order; the pin is the newest
+   * of them. CLI `status` lists the rest. */
+  candidates: Candidate[];
 }
 
 type Cache = Record<string, Pin>;
@@ -53,17 +63,34 @@ function isExecutable(p: string): boolean {
   }
 }
 
-/** PATH + well-known dirs hunt. Returns the first executable hit. */
-function findBinary(hints: DetectHints): string | null {
+function fingerprintOf(p: string): string {
+  try {
+    const st = statSync(p);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch {
+    return "gone";
+  }
+}
+
+/** PATH + well-known dirs hunt. Every executable hit, in hunt order, one
+ * per real file; the first spelling of a file is kept. */
+function findCandidates(hints: DetectHints): Array<{ binPath: string; fingerprint: string }> {
   const pathDirs = (process.env["PATH"] ?? "").split(path.delimiter).filter((d) => d !== "");
   const extraDirs = hints.wellKnownDirs.map((d) => d.replace(/^~(?=\/|$)/, homedir()));
+  const seen = new Set<string>();
+  const found: Array<{ binPath: string; fingerprint: string }> = [];
   for (const name of hints.binaryNames) {
     for (const dir of [...pathDirs, ...extraDirs]) {
       const candidate = path.join(dir, name);
-      if (isExecutable(candidate)) return candidate;
+      if (!isExecutable(candidate)) continue;
+      let real = candidate;
+      try { real = realpathSync(candidate); } catch { /* keep the spelling */ }
+      if (seen.has(real)) continue;
+      seen.add(real);
+      found.push({ binPath: candidate, fingerprint: fingerprintOf(candidate) });
     }
   }
-  return null;
+  return found;
 }
 
 const VERSION_TIMEOUT_MS = 10_000;
@@ -99,37 +126,58 @@ function captureVersion(binPath: string): Promise<string | null> {
   });
 }
 
+/** The first dotted number in a version line ("codex-cli 0.159.0",
+ * "2.1.283 (Claude Code)", "grok 1.0.44 (abc) [stable]"). Null when none. */
+function parseVersion(line: string): number[] | null {
+  const m = /(\d+)\.(\d+)(?:\.(\d+))?/.exec(line);
+  if (m === null) return null;
+  return [Number(m[1]), Number(m[2]), Number(m[3] ?? 0)];
+}
+
+/** >0 when a is newer than b. Unparsable loses to parsed; two unparsable tie. */
+function compareVersions(a: string, b: string): number {
+  const pa = parseVersion(a);
+  const pb = parseVersion(b);
+  if (pa === null || pb === null) return (pa === null ? 0 : 1) - (pb === null ? 0 : 1);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+function sameSet(
+  cached: Candidate[] | undefined,
+  found: Array<{ binPath: string; fingerprint: string }>,
+): boolean {
+  if (cached === undefined || cached.length !== found.length) return false;
+  return cached.every((c, i) => c.binPath === found[i]?.binPath && c.fingerprint === found[i]?.fingerprint);
+}
+
 /**
- * Resolve the pin for one harness: cached when the binary is still the same
- * file, re-probed otherwise. Null = the harness is not installed.
+ * Resolve the pin for one harness: cached while the installed set is
+ * unchanged, re-probed otherwise. Null = the harness is not installed.
  */
 export async function resolvePin(name: string, hints: DetectHints): Promise<Pin | null> {
   const cache = readCache();
   const cached = cache[name];
-  if (cached !== undefined) {
-    try {
-      const st = statSync(cached.binPath);
-      if (st.isFile() && st.mtimeMs === cached.binMtimeMs) return cached;
-    } catch {
-      /* stale — fall through to re-probe */
-    }
-  }
-  const binPath = findBinary(hints);
-  if (binPath === null) {
+  const found = findCandidates(hints);
+  if (cached !== undefined && sameSet(cached.candidates, found)) return cached;
+  if (found.length === 0) {
     if (cached !== undefined) {
       delete cache[name];
       writeCache(cache);
     }
     return null;
   }
-  const version = (await captureVersion(binPath)) ?? "unknown";
-  let binMtimeMs = 0;
-  try {
-    binMtimeMs = statSync(binPath).mtimeMs;
-  } catch {
-    /* keep 0: next resolve re-probes */
+  const versions = await Promise.all(found.map((c) => captureVersion(c.binPath)));
+  const candidates: Candidate[] = found.map((c, i) => ({ ...c, version: versions[i] ?? "unknown" }));
+  // Newest wins; a tie keeps hunt order.
+  let best = candidates[0] as Candidate;
+  for (const c of candidates.slice(1)) {
+    if (compareVersions(c.version, best.version) > 0) best = c;
   }
-  const pin: Pin = { binPath, version, binMtimeMs, checkedAt: new Date().toISOString() };
+  const pin: Pin = { binPath: best.binPath, version: best.version, checkedAt: new Date().toISOString(), candidates };
   cache[name] = pin;
   writeCache(cache);
   return pin;
