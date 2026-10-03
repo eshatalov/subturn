@@ -137,9 +137,14 @@ async function cmdStatus(): Promise<void> {
         ? `\n${" ".repeat(10)}models: ${models.join(", ")}`
         : `\n${" ".repeat(10)}models: (no cheap advertisement for this harness)`;
     }
+    const others = pin.candidates.filter((c) => c.binPath !== pin.binPath);
+    const othersLine = others.length > 0
+      ? `${" ".repeat(10)}also installed, older: ${others.map((c) => `${c.binPath} (${c.version})`).join(", ")}\n`
+      : "";
     rows.push(
       `${name.padEnd(9)} ${pin.version}\n` +
       `${" ".repeat(10)}binary: ${pin.binPath}\n` +
+      othersLine +
       `${" ".repeat(10)}auth:   ${auth.ok ? "ok" : "NOT AUTHORIZED"} — ${auth.detail}` +
       modelsLine,
     );

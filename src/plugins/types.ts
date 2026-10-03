@@ -6,7 +6,8 @@
 import type { Usage } from "../core/state.ts";
 
 export interface DetectHints {
-  /** Binary name(s) to hunt on PATH. */
+  /** Binary name(s) to hunt on PATH and in wellKnownDirs. Every hit is a
+   * candidate; the newest version is launched. */
   binaryNames: string[];
   /** Extra directories to search beyond PATH (installers love ~/.x/bin). */
   wellKnownDirs: string[];
