@@ -92,6 +92,7 @@ test("home snapshots credentials into a private DB with session tables emptied",
   }
   assert.ok(existsSync(shadowDb));
   assert.equal(home.env["XDG_DATA_HOME"], shadowData);
+  assert.equal(home.env["OPENCODE_DB"], shadowDb);
   assert.equal(home.env["OPENCODE_PRINT_LOGS"], "1");
 
   const creds = "SELECT id, integration_id FROM credential ORDER BY id";
@@ -132,6 +133,29 @@ async function authWith(dataHome: string): Promise<{ ok: boolean; detail: string
     process.env["XDG_DATA_HOME"] = userData;
   }
 }
+
+test("OPENCODE_DB names the user's DB and never reaches the child", async () => {
+  const elsewhere = mkdtempSync(path.join(scratch, "override-"));
+  const moved = path.join(elsewhere, "mine.db");
+  const src = new DatabaseSync(userDb, { readOnly: true });
+  src.prepare("VACUUM INTO ?").run(moved);
+  src.close();
+  const session = mkdtempSync(path.join(scratch, "override-session-"));
+  process.env["XDG_DATA_HOME"] = mkdtempSync(path.join(scratch, "override-empty-"));
+  process.env["OPENCODE_DB"] = moved;
+  try {
+    const res = await opencodePlugin.auth();
+    assert.equal(res.ok, true, res.detail);
+    const home = await opencodePlugin.home(session);
+    const shadow = path.join(session, "home", "opencode-data", "opencode", "opencode.db");
+    assert.equal(home.env["OPENCODE_DB"], shadow);
+    assert.equal(count(shadow, "credential"), 2);
+    assert.equal(count(shadow, "session_v2"), 0);
+  } finally {
+    delete process.env["OPENCODE_DB"];
+    process.env["XDG_DATA_HOME"] = userData;
+  }
+});
 
 test("auth without opencode.db points at opencode auth login", async () => {
   const empty = mkdtempSync(path.join(scratch, "empty-"));

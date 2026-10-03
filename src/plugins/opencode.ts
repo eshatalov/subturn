@@ -21,7 +21,9 @@
 // Shadow home: `opencode acp` runs its own `opencode serve --stdio` child,
 // never the user's background service, and that server keeps sessions and
 // credentials (table `credential`) in one SQLite file,
-// $XDG_DATA_HOME/opencode/opencode.db. The shadow is a snapshot of the
+// $XDG_DATA_HOME/opencode/opencode.db, or wherever OPENCODE_DB points. The
+// child gets both variables, so a user's OPENCODE_DB cannot lead it back to
+// the user's file. The shadow is a snapshot of the
 // user's file: `VACUUM INTO` from a read-only connection (consistent while
 // the user's service writes), then every table outside KEEP_TABLES emptied
 // and the models.dev catalog cache dropped from kv (the binary bundles
@@ -62,7 +64,9 @@ function realDataDir(): string {
 }
 
 function realDbPath(): string {
-  return path.join(realDataDir(), "opencode.db");
+  // OpenCode resolves OPENCODE_DB against its data dir.
+  const override = process.env["OPENCODE_DB"];
+  return path.resolve(realDataDir(), override !== undefined && override !== "" ? override : "opencode.db");
 }
 
 /** Copy the user's opencode.db to `shadowDb` keeping only the login (see
@@ -153,8 +157,9 @@ export const opencodePlugin: Plugin = {
     // a background service that outlives us.
     const tmp = mkdtempSync(path.join(tmpdir(), "subturn-opencode-models-"));
     try {
-      snapshotCredentials(realDbPath(), path.join(tmp, "opencode", "opencode.db"));
-      return await probeAcpModels([binPath, "acp"], { XDG_DATA_HOME: tmp });
+      const shadowDb = path.join(tmp, "opencode", "opencode.db");
+      snapshotCredentials(realDbPath(), shadowDb);
+      return await probeAcpModels([binPath, "acp"], { XDG_DATA_HOME: tmp, OPENCODE_DB: shadowDb });
     } catch {
       return null;
     } finally {
@@ -169,7 +174,7 @@ export const opencodePlugin: Plugin = {
     const fresh = !existsSync(shadowDb);
     if (fresh) snapshotCredentials(realDbPath(), shadowDb);
     return Promise.resolve({
-      env: { XDG_DATA_HOME: shadowData, OPENCODE_PRINT_LOGS: "1" },
+      env: { XDG_DATA_HOME: shadowData, OPENCODE_DB: shadowDb, OPENCODE_PRINT_LOGS: "1" },
       note: fresh
         ? `XDG_DATA_HOME=${shadowData}; credentials snapshotted from ${realDbPath()}, session tables emptied`
         : `XDG_DATA_HOME=${shadowData}; existing shadow reused (resumed turn)`,
