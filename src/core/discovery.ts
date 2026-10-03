@@ -2,7 +2,9 @@
 // Every copy of the binary on PATH and in the well-known dirs is a
 // candidate; the newest `--version` is launched. The persisted per-harness
 // pin is keyed on that candidate set (paths, mtimes, sizes): while the set
-// is unchanged, admission reuses the pin without a probe.
+// is unchanged, admission reuses the pin without a probe. A shim that
+// dispatches to another file at run time does not change when its target
+// does, so a pin also expires after PIN_TTL_MS and is probed again.
 
 import { spawn } from "node:child_process";
 import { accessSync, constants, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync, renameSync } from "node:fs";
@@ -94,6 +96,7 @@ function findCandidates(hints: DetectHints): Array<{ binPath: string; fingerprin
 }
 
 const VERSION_TIMEOUT_MS = 10_000;
+const PIN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** `<bin> --version`, first line, 10 s cap. Never throws. */
 function captureVersion(binPath: string): Promise<string | null> {
@@ -156,13 +159,15 @@ function sameSet(
 
 /**
  * Resolve the pin for one harness: cached while the installed set is
- * unchanged, re-probed otherwise. Null = the harness is not installed.
+ * unchanged and the pin is younger than PIN_TTL_MS, re-probed otherwise.
+ * Null = the harness is not installed.
  */
 export async function resolvePin(name: string, hints: DetectHints): Promise<Pin | null> {
   const cache = readCache();
   const cached = cache[name];
   const found = findCandidates(hints);
-  if (cached !== undefined && sameSet(cached.candidates, found)) return cached;
+  if (cached !== undefined && sameSet(cached.candidates, found)
+    && Date.now() - Date.parse(cached.checkedAt) < PIN_TTL_MS) return cached;
   if (found.length === 0) {
     if (cached !== undefined) {
       delete cache[name];

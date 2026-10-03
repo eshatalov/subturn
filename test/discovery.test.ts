@@ -1,11 +1,12 @@
 // test/discovery.test.ts — binary discovery against scripted binaries: the
 // newest copy wins regardless of PATH order; the pin is reused while the
 // candidate set is unchanged and re-probed on install, upgrade or removal;
-// aliases of one file are one candidate.
+// aliases of one file are one candidate; a pin older than a day is probed
+// again even when the set is unchanged.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -50,6 +51,16 @@ test("the newest installed copy wins over PATH order, and the pin caches the ins
   const again = await resolvePin("fakex", hints);
   assert.ok(again !== null);
   assert.equal(again.checkedAt, pin.checkedAt);
+
+  // A day-old pin is probed again even though nothing changed.
+  const cacheFile = path.join(root, "state", "discovery.json");
+  const cache = JSON.parse(readFileSync(cacheFile, "utf8")) as Record<string, { checkedAt: string }>;
+  (cache["fakex"] as { checkedAt: string }).checkedAt = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+  writeFileSync(cacheFile, JSON.stringify(cache));
+  const expired = await resolvePin("fakex", hints);
+  assert.ok(expired !== null);
+  assert.equal(expired.binPath, fresh);
+  assert.notEqual(expired.checkedAt, cache["fakex"]?.checkedAt);
 
   // A newer copy in a well-known dir that is not on PATH wins.
   const brew = install(brewDir, "0.160.2");
