@@ -23,9 +23,9 @@ const SESSION_LOAD_TIMEOUT_MS = 120_000; // replay of a long history takes time
 const CONFIG_SETTLE_MS = 5_000;
 
 /** Runs `attempt`; when the harness refuses it with -32602, runs it again
- * after each config_option_update, until none arrives within
- * CONFIG_SETTLE_MS of the first try. For a harness whose option list is
- * still loading when the session opens and that announces the rest. */
+ * after each config_option_update, giving up CONFIG_SETTLE_MS after the
+ * first try. For a harness that opens a session before its option list has
+ * loaded and announces the rest. */
 export type RetryOnConfigUpdate = (attempt: () => Promise<unknown>) => Promise<unknown>;
 
 export interface AcpTurnPlan {

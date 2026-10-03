@@ -11,10 +11,10 @@
 // all tool executions), plus Subturn's ACP client's allow-everything
 // permission handler as a backstop.
 //
-// Quirk: grok can complete a
-// prompt via the private `_x.ai/session/prompt_complete` notification
-// without ever answering the standard session/prompt request. The turn
-// races both; the promptId rides in _meta.promptId/_meta.requestId.
+// Quirk: grok can complete a prompt via the private
+// `_x.ai/session/prompt_complete` notification without ever answering the
+// standard session/prompt request. The turn races both; the promptId rides
+// in _meta.promptId/_meta.requestId.
 //
 // Shadow home: GROK_HOME relocates the whole home (sessions land under
 // $GROK_HOME/sessions); the user's real ~/.grok/auth.json is symlinked in.
