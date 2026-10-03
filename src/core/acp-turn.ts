@@ -20,6 +20,13 @@ import path from "node:path";
 const INITIALIZE_TIMEOUT_MS = 30_000;
 const SESSION_NEW_TIMEOUT_MS = 60_000;
 const SESSION_LOAD_TIMEOUT_MS = 120_000; // replay of a long history takes time
+const CONFIG_SETTLE_MS = 5_000;
+
+/** Runs `attempt`; when the harness refuses it with -32602, runs it again
+ * after each config_option_update, until none arrives within
+ * CONFIG_SETTLE_MS of the first try. For a harness whose option list is
+ * still loading when the session opens and that announces the rest. */
+export type RetryOnConfigUpdate = (attempt: () => Promise<unknown>) => Promise<unknown>;
 
 export interface AcpTurnPlan {
   argv: string[];
@@ -27,7 +34,11 @@ export interface AcpTurnPlan {
    * acknowledged-bundle record for ack.json, or null when the harness
    * echoes nothing. Throw to fail. Runs on resumed turns too — this is
    * where model+effort are re-applied explicitly. */
-  configure?: (client: AcpClient, sessionId: string) => Promise<Record<string, unknown> | null>;
+  configure?: (
+    client: AcpClient,
+    sessionId: string,
+    retryOnConfigUpdate: RetryOnConfigUpdate,
+  ) => Promise<Record<string, unknown> | null>;
   /** Extract the acknowledged bundle from the session/new response (grok:
    * models.currentModelId + reasoningEffort meta). */
   ackFromSessionNew?: (result: Record<string, unknown>) => Record<string, unknown> | null;
@@ -102,6 +113,8 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
   const usageCandidates: unknown[] = [];
   let activeSessionId = "";
   let collecting = false; // off until the prompt goes out (replay isn't ours)
+  let configUpdates = 0;
+  let onConfigUpdate: (() => void) | null = null;
 
   const client = new AcpClient(spawned.child, {
     emit: (e) => ctx.emit(e),
@@ -111,6 +124,10 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
         return;
       }
       ctx.emit({ type: collecting ? "session_update" : "session_update_replay", update });
+      if (update["sessionUpdate"] === "config_option_update") {
+        configUpdates++;
+        onConfigUpdate?.();
+      }
       if (!collecting) return;
       if (update["sessionUpdate"] === "agent_message_chunk") {
         const content = update["content"];
@@ -146,6 +163,27 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
   for (const [method, handler] of Object.entries(plan.extNotifications ?? {})) {
     client.onExtNotification(method, (params) => handler(params, sink));
   }
+
+  const nextConfigUpdate = (timeoutMs: number): Promise<boolean> =>
+    new Promise((resolve) => {
+      const timer = setTimeout(() => { onConfigUpdate = null; resolve(false); }, timeoutMs);
+      onConfigUpdate = () => { clearTimeout(timer); onConfigUpdate = null; resolve(true); };
+    });
+  const retryOnConfigUpdate: RetryOnConfigUpdate = async (attempt) => {
+    const deadline = Date.now() + CONFIG_SETTLE_MS;
+    for (;;) {
+      const seen = configUpdates; // an update landing mid-attempt counts
+      try {
+        return await attempt();
+      } catch (e) {
+        if (!(e instanceof RpcError) || e.code !== -32602) throw e;
+        const left = deadline - Date.now();
+        if (left <= 0) throw e;
+        if (configUpdates === seen && !(await nextConfigUpdate(left))) throw e;
+        ctx.emit({ type: "configure_retry", refused: e.message });
+      }
+    }
+  };
 
   try {
     const initResult = await client.request("initialize", {
@@ -190,7 +228,7 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
       ackBase = plan.ackFromSessionNew(sessionNewResult);
     }
     if (plan.configure !== undefined) {
-      const configureAck = await plan.configure(client, activeSessionId);
+      const configureAck = await plan.configure(client, activeSessionId, retryOnConfigUpdate);
       if (configureAck !== null) ackBase = { ...(ackBase ?? {}), ...configureAck };
     }
     if (currentAck() !== null) {

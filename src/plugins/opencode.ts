@@ -7,6 +7,12 @@
 // session/load, handled in acp-turn) runs the same configure step, so the
 // bundle is re-applied explicitly on every turn — never server defaults.
 //
+// The server lists models before its plugins have added theirs (the
+// OpenCode Console providers, providers from the user's config) and
+// announces the rest with config_option_update about a second later. A
+// model refused right after the session opens is therefore set again after
+// each such update (retryOnConfigUpdate in acp-turn).
+//
 // Posture: `opencode acp` has no --auto flag; the permissive posture is the
 // Subturn's ACP client itself, which answers every session/request_permission
 // with the most permissive option (core/acp.ts). No prompt can fire
@@ -173,9 +179,9 @@ export const opencodePlugin: Plugin = {
   launch(ctx: LaunchContext): Promise<LaunchOutcome> {
     return runAcpTurn(ctx, {
       argv: [ctx.binPath, "acp"],
-      configure: async (client, sessionId) => {
+      configure: async (client, sessionId, retryOnConfigUpdate) => {
         // Model FIRST — the effort option appears only after the model set.
-        const modelRes = await setConfig(client, sessionId, "model", ctx.model);
+        const modelRes = await retryOnConfigUpdate(() => setConfig(client, sessionId, "model", ctx.model));
         const effortRes = await setConfig(client, sessionId, "effort", ctx.effort);
         // The effort response is the later echo of the whole option list, so
         // it is the authoritative currentValue for both.
