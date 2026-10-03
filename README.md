@@ -26,7 +26,7 @@ npm install -g subturn
 claude mcp add subturn -- subturn serve
 ```
 
-Requires Node 22 or newer. Until the package is published, `npx github:eshatalov/subturn` works the same way. From a checkout, `npm install` builds `dist/` and the server is `node dist/faces/mcp.js`.
+Requires Node 22.13 or newer, and OpenCode 2 or newer for that harness. Until the package is published, `npx github:eshatalov/subturn` works the same way. From a checkout, `npm install` builds `dist/` and the server is `node dist/faces/mcp.js`.
 
 ## The caller's whole manual
 
@@ -54,7 +54,7 @@ CLI `spawn` and `resume` detach a per-turn supervisor, so the one-shot invocatio
 
 ## How it works
 
-**Core** (`src/core`) has five functions, one per verb. Admission runs before any quota is spent: a persisted per-harness pin (the newest copy of the binary on PATH or in the usual install dirs, re-probed when that set of files changes) and a cheap auth check that never launches the harness (Codex's `auth.json` tokens, the macOS keychain item for Claude Code, Grok's and OpenCode's auth files). A spawn that dies before the harness produces a session id throws a plain error carrying the auth result, argv, stderr, and exit inline. Model ids are never gated: a wrong one fails inside the harness and comes back as evidence.
+**Core** (`src/core`) has five functions, one per verb. Admission runs before any quota is spent: a persisted per-harness pin (the newest copy of the binary on PATH or in the usual install dirs, re-probed when that set of files changes) and a cheap auth check that never launches the harness (Codex's `auth.json` tokens, the macOS keychain item for Claude Code, Grok's auth file, the `credential` table in OpenCode's database). A spawn that dies before the harness produces a session id throws a plain error carrying the auth result, argv, stderr, and exit inline. Model ids are never gated: a wrong one fails inside the harness and comes back as evidence.
 
 **Sessions** live under `~/.local/state/subturn/sessions/<session-id>/` (`SUBTURN_STATE_DIR` overrides). The directory holds the record, the prompt, the spawn command, the event stream as it happens, stderr, the acknowledged bundle where the harness echoes one, and the final text, so `inspect` works on a running session. Retention is 7 days after the last turn (`SUBTURN_RETENTION_DAYS`), swept on each spawn or on demand by `prune`; the resume window is the retention window, because the harness state needed for resume lives in the same directory. The deadline default is 3600 s (`SUBTURN_DEADLINE_S`), the maximum six hours.
 
@@ -66,7 +66,7 @@ CLI `spawn` and `resume` detach a per-turn supervisor, so the one-shot invocatio
 
 | harness  | transport | bundle | resume | session hygiene |
 |----------|-----------|--------|--------|-----------------|
-| opencode | native ACP (`opencode acp`) | `session/set_config_option` model then effort, every turn | ACP `session/load`, replay isolated from the new turn's final text | shadow data dir via `XDG_DATA_HOME`; `auth.json` symlinked back |
+| opencode | native ACP (`opencode acp`) | `session/set_config_option` model then effort, every turn | ACP `session/load`, replay isolated from the new turn's final text | shadow data dir via `XDG_DATA_HOME`; the user's credentials snapshotted into a private `opencode.db` with the session tables emptied |
 | grok     | native ACP (`grok agent … stdio`) | `-m` / `--reasoning-effort` every turn; ack read from `session/new` | ACP `session/load` | shadow home via `GROK_HOME`; `auth.json` symlinked back |
 | codex    | headless `codex exec --json` | `-m` / `-c model_reasoning_effort=` every turn | `codex exec resume <id>` in the session's `CODEX_HOME` shadow | shadow home via `CODEX_HOME`; `auth.json` symlinked back; the user's `config.toml` deliberately not shared |
 | claude   | headless `claude -p --output-format stream-json` | `--model` / `--effort` every turn | `claude -p --resume <id>` after restoring parked files | default config dir, because keychain auth is bound to it; session files parked out of `~/.claude/projects` the moment a turn ends |

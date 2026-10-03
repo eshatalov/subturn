@@ -194,6 +194,37 @@ test("posture: a permission request is auto-answered with the most permissive op
   }
 });
 
+test("a model the harness announces after the session opens is set once announced", async () => {
+  process.env["FAKE_MODE"] = "latemodel";
+  try {
+    const res = await spawn(baseInput());
+    const done = await awaitTurn(res.session_id, 30);
+    assert.equal(done.status, "completed");
+    assert.deepEqual(done.bundle, { model: "fake-model-1", effort: "high" });
+    const events = inspect(res.session_id).events.parsed as Array<Record<string, unknown>>;
+    assert.deepEqual(
+      events.filter((e) => e["type"] === "configure_retry").map((e) => e["refused"]),
+      ["model not found: fake-model-1"],
+    );
+  } finally {
+    delete process.env["FAKE_MODE"];
+  }
+});
+
+test("a model the harness never announces fails with the harness's refusal", async () => {
+  process.env["FAKE_MODE"] = "nomodel";
+  try {
+    const res = await spawn(baseInput());
+    const done = await awaitTurn(res.session_id, 30);
+    assert.equal(done.status, "failed");
+    const evidence = inspect(res.session_id);
+    assert.ok(evidence.error.text?.includes("-32602"));
+    assert.ok(evidence.error.text?.includes("model not found: fake-model-1"));
+  } finally {
+    delete process.env["FAKE_MODE"];
+  }
+});
+
 test("configure failure after the id exists: failed turn with raw rpc evidence", async () => {
   process.env["FAKE_MODE"] = "badeffort";
   try {

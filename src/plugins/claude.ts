@@ -8,7 +8,7 @@
 // Posture: `--dangerously-skip-permissions` — claude's validated bypass
 // mode; no permission prompt can fire in print mode with it.
 //
-// Hygiene by parking, NOT a shadow home (proven by live smoke 2026-09-01):
+// Hygiene by parking, NOT a shadow home:
 // claude's keychain credentials are per-config-dir — the service name is
 // "Claude Code-credentials-<8-hex hash of the dir>" — so any fresh
 // CLAUDE_CONFIG_DIR shadow starts logged out, and the owner refuses extra

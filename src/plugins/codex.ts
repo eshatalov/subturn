@@ -9,7 +9,7 @@
 // validated non-interactive full-access mode; no approval prompt exists in
 // exec mode with it. `--skip-git-repo-check` keeps non-repo cwds working.
 // stdin carries the prompt and is closed immediately (codex hangs on an
-// open stdin — recorded harness homework).
+// open stdin).
 //
 // Shadow home: CODEX_HOME relocates the whole home; the user's real
 // ~/.codex/auth.json is symlinked back in (auth.json is the one
@@ -128,9 +128,8 @@ export const codexPlugin: Plugin = {
     // Resume: `codex exec resume <id>` continues the stored rollout in this
     // session's CODEX_HOME shadow — non-forking, same conversation. Model
     // and effort are re-applied explicitly (never server defaults). The
-    // resume subcommand takes the same flags EXCEPT --color (validated live
-    // 2026-09-01: `--color` is rejected there), so --color rides only on
-    // the fresh-exec argv.
+    // resume subcommand takes the same flags EXCEPT --color (it rejects it),
+    // so --color rides only on the fresh-exec argv.
     const argv = ctx.nativeSessionId !== undefined
       ? [ctx.binPath, "exec", "resume", ...bundleFlags, ctx.nativeSessionId, "-"]
       : [ctx.binPath, "exec", "--color", "never", ...bundleFlags, "-"]; // prompt from stdin

@@ -41,11 +41,13 @@ export const fakePlugin: Plugin = {
     }
     return runAcpTurn(ctx, {
       argv: [process.execPath, script],
-      configure: async (client, sessionId) => {
-        const modelRes = await client.request(
-          "session/set_config_option",
-          { sessionId, configId: "model", value: ctx.model },
-          15_000,
+      configure: async (client, sessionId, retryOnConfigUpdate) => {
+        const modelRes = await retryOnConfigUpdate(() =>
+          client.request(
+            "session/set_config_option",
+            { sessionId, configId: "model", value: ctx.model },
+            15_000,
+          ),
         );
         const effortRes = await client.request(
           "session/set_config_option",

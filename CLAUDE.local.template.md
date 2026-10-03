@@ -9,7 +9,7 @@ Spawn with a harness (`codex`, `claude`, `grok`, `opencode`), a full model id an
 
 ## Routing
 
-`sol` = codex `gpt-5.6-sol`, `luna` = codex `gpt-5.6-luna`, `glm` = opencode `zai-coding-plan/glm-5.3`. `/` = any of these, `+` = both, findings merged. For `fable`, `opus`, `sonnet` and `haiku` don't use MCP, use native subagents instead
+`sol` = codex `gpt-6.1-sol`, `luna` = codex `gpt-6-luna`, `glm` = opencode `zai-coding-plan/glm-5.3`. `/` = any of these, `+` = both, findings merged. For `fable`, `opus`, `sonnet` and `haiku` don't use MCP, use native subagents instead
 
 | Task | Default | When the default falls short |
 |---|---|---|
