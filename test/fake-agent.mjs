@@ -4,9 +4,6 @@
 //   permission — asks for permission mid-prompt; completes only when allowed
 //   hang       — accepts the prompt request and never answers (deadline test)
 //   badeffort  — refuses the "effort" set_config with -32602
-//   latemodel  — refuses the "model" set_config with -32602 until it has
-//                announced its models with a config_option_update
-//   nomodel    — refuses the "model" set_config with -32602, announces nothing
 //   grok       — never answers the prompt request; completes via the private
 //                _x.ai/session/prompt_complete notification (race test)
 //   die        — exits immediately (launch-failure-before-session-id test)
@@ -27,7 +24,6 @@ if (mode === "die") {
 let buf = "";
 const config = { model: null, effort: null };
 let loadedSessionId = null;
-let modelsAnnounced = false;
 let pendingPermissionId = null;
 let pendingPromptId = null;
 let promptSessionId = null;
@@ -92,20 +88,6 @@ function handle(msg) {
   if (method === "session/set_config_option") {
     if (mode === "badeffort" && params.configId === "effort") {
       send({ jsonrpc: "2.0", id, error: { code: -32602, message: `invalid effort: ${params.value}` } });
-      return;
-    }
-    if ((mode === "latemodel" || mode === "nomodel") && params.configId === "model" && !modelsAnnounced) {
-      send({ jsonrpc: "2.0", id, error: { code: -32602, message: `model not found: ${params.value}` } });
-      if (mode === "latemodel") {
-        setTimeout(() => {
-          modelsAnnounced = true;
-          send({
-            jsonrpc: "2.0",
-            method: "session/update",
-            params: { sessionId: params.sessionId, update: { sessionUpdate: "config_option_update", configOptions: [] } },
-          });
-        }, 50);
-      }
       return;
     }
     config[params.configId] = params.value;
