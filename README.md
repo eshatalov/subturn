@@ -26,7 +26,7 @@ npm install -g subturn
 claude mcp add subturn -- subturn serve
 ```
 
-Requires Node 22.13 or newer, and OpenCode 2 or newer for that harness. Until the package is published, `npx github:eshatalov/subturn` works the same way. From a checkout, `npm install` builds `dist/` and the server is `node dist/faces/mcp.js`.
+Requires Node 22.13 or newer, and OpenCode 2.0.25 or newer for that harness. Until the package is published, `npx github:eshatalov/subturn` works the same way. From a checkout, `npm install` builds `dist/` and the server is `node dist/faces/mcp.js`.
 
 ## The caller's whole manual
 
