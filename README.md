@@ -42,7 +42,7 @@ Spawn with a harness (`claude`, `codex`, `grok`, `opencode`), a full model id an
 - The prompt is all the subagent sees. Put everything it needs in it.
 - Subagents cannot delegate further. Cross-checks and reviews are separate spawns from here.
 - Retries and fallbacks are yours. On `failed`, read `inspect` before trying again.
-- Pick the bundle from the table and always pass the effort.
+- Always pass the effort.
 
 `fable` = claude `fable`, `opus` = claude `opus`, `sonnet` = claude `sonnet`, `haiku` = claude `haiku`, `grok` = grok `grok-4.7`, `glm` = opencode `zai-coding-plan/glm-5.3`, `muse` = opencode `opencode-go/muse-spark-1.3-contributor`. Model ids are fixed, don't look for replacements. For `astra`, `sol` and `luna` don't use MCP, use native subagents instead.
 ```
