@@ -33,8 +33,7 @@
   "files": [
     "dist",
     "README.md",
-    "AGENTS.md",
-    "CLAUDE.local.template.md"
+    "AGENTS.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
