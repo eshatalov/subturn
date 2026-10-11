@@ -1,11 +1,10 @@
 // plugins/grok.ts — Grok over native ACP (`grok agent ... stdio`).
 //
 // Bundle: model and effort go as process flags BEFORE the `stdio`
-// subcommand (`-m <model> --reasoning-effort <effort>`); grok stdio has no
-// set_config. The acknowledged bundle is read back from the session/new
-// response (models.currentModelId + the current model's
-// _meta.reasoningEffort, plus the `x.ai/sessionConfig` selected option) and
-// recorded in ack.json — evidence, not a gate.
+// subcommand (`-m <model> --reasoning-effort <effort>`). The acknowledged
+// bundle is read back from the session/new response (models.currentModelId
+// + the current model's _meta.reasoningEffort, plus the `x.ai/sessionConfig`
+// selected option) and recorded in ack.json — evidence, not a gate.
 //
 // Posture: `--always-approve` (validated in Grok's own CLI: auto-approves
 // all tool executions), plus Subturn's ACP client's allow-everything
@@ -73,9 +72,14 @@ export const grokPlugin: Plugin = {
     const realAuth = path.join(realGrokHome(), "auth.json");
     const linked = shareAuth(realAuth, path.join(shadow, "auth.json"));
     return Promise.resolve({
-      env: { GROK_HOME: shadow },
+      // GROK_CAMPAIGNS=0: a remote campaign (e.g. a model launch) can force
+      // its own default model in session/new over `-m`. The user's home
+      // remembers dismissed campaigns; a fresh shadow does not, so without
+      // this every session would run the campaign's model.
+      env: { GROK_HOME: shadow, GROK_CAMPAIGNS: "0" },
       note:
         `GROK_HOME=${shadow} (sessions land under the shadow, invisible to \`grok sessions\`); ` +
+        `GROK_CAMPAIGNS=0 (remote campaigns cannot override -m); ` +
         `auth.json ${linked ? "symlinked from" : "NOT FOUND at"} ${realAuth}`,
     });
   },

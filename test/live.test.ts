@@ -71,6 +71,11 @@ test(`live smoke + resume: ${harness} ${model}/${effort}`, { skip: !live || kill
       assert.fail(`live turn 1 ${done.status}: ${JSON.stringify(evidence.error)}\nstderr: ${JSON.stringify(evidence.stderr_tail)}`);
     }
     assert.ok((done.final_text ?? "").toLowerCase().includes("ok"));
+    // A harness may silently run a different model than asked; where it
+    // echoes one, the echo must be the requested model.
+    if (done.bundle?.model !== undefined) {
+      assert.equal(done.bundle.model, model, "the harness must run the requested model");
+    }
 
     if (harness === "claude") {
       assert.equal(
