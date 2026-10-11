@@ -30,9 +30,22 @@ Requires Node 22.13 or newer, and OpenCode 2.0.25 or newer for that harness. Unt
 
 ## The caller's whole manual
 
-An orchestrator needs one instruction file to use Subturn, and it has two parts. The first is a paragraph saying how to call the five tools. It is the same in every project, and it is the whole surface Subturn exposes; we keep it that size on purpose. The second is a routing table: which model, at which effort, for which kind of work, and where to go when the default falls short. That is where the real knowledge lives, it is written and tuned by the orchestrator's owner, and Subturn never gets in its way.
+An orchestrator needs one instruction file to use Subturn. Most of it is a paragraph saying how to call the five tools. It is the same in every project, and it is the whole surface Subturn exposes; we keep it that size on purpose. Which model to use for which kind of work depends on the user's subscriptions and taste, so that part is the owner's to write, and Subturn never gets in its way.
 
-[CLAUDE.local.template.md](CLAUDE.local.template.md) is the whole file. Copy it to a project as `CLAUDE.local.md`, or paste it into whatever instruction file your host reads. Its table is an example trimmed to two harnesses; replace it with yours.
+Here is a whole file, as an example. Give it the same scope as the server: your host's user-level instructions (`~/.claude/CLAUDE.md` for Claude Code, `~/.codex/AGENTS.md` for Codex) when the server is installed for every project, the project's own instruction file when it is installed for one. The last paragraph names the models one particular setup uses, with `glm` and `muse` showing how other subscriptions come in through OpenCode; replace it with yours.
+
+```markdown
+Delegate through the `subturn` MCP server. Never call the harness CLIs from Bash.
+
+Spawn with a harness (`claude`, `codex`, `grok`, `opencode`), a full model id and a reasoning effort (both passed verbatim), a prompt, and an absolute cwd. After the few seconds the harness needs to come up you get its own session id back while the subagent runs on; if anything fails before the session exists, the spawn itself errors with the full detail inline. `await` the id for the outcome, waiting up to `timeout` seconds (default and max 300, `0` for a snapshot; the turn keeps running if the wait runs out): final text, usage, and the model and effort the harness acknowledged on success, bare `failed` or `cancelled` otherwise. `resume` the id with a new prompt to continue the conversation once its turn is no longer running; harness, model, effort, and cwd carry over, the id stays the same, and the conversation stays resumable for 7 days after its last turn. `cancel` kills a running turn and keeps the session. Every "why" is in `inspect`, which returns the raw evidence and works mid-run. Turns die at their deadline (default 3600 s), so fire-and-forget is safe; fan-out is just several spawns. Give the subagent a disposable cwd or worktree when cleanliness matters and diff it afterwards.
+
+- The prompt is all the subagent sees. Put everything it needs in it.
+- Subagents cannot delegate further. Cross-checks and reviews are separate spawns from here.
+- Retries and fallbacks are yours. On `failed`, read `inspect` before trying again.
+- Always pass the effort.
+
+`fable` = claude `fable`, `opus` = claude `opus`, `sonnet` = claude `sonnet`, `haiku` = claude `haiku`, `grok` = grok `grok-4.7`, `glm` = opencode `zai-coding-plan/glm-5.3`, `muse` = opencode `opencode-go/muse-spark-1.3-contributor`. Model ids are fixed, don't look for replacements. For `astra`, `sol` and `luna` don't use MCP, use native subagents instead.
+```
 
 ## CLI
 
