@@ -5,6 +5,12 @@
 // The acknowledged bundle is read back from the JSONL stream when codex
 // echoes its configuration (session_configured / turn context events).
 //
+// Service tier: `-c service_tier=default`, always. "default" is codex's
+// sentinel for standard routing: the model catalog can name a faster,
+// pricier tier as a model's default, and the sentinel keeps it from
+// applying. The caller can't pick a tier; a turn never spends more quota
+// than it would on the standard tier.
+//
 // Posture: `--dangerously-bypass-approvals-and-sandbox` — codex's own
 // validated non-interactive full-access mode; no approval prompt exists in
 // exec mode with it. `--skip-git-repo-check` keeps non-repo cwds working.
@@ -121,6 +127,7 @@ export const codexPlugin: Plugin = {
       "--json",
       "-m", ctx.model,
       "-c", `model_reasoning_effort=${ctx.effort}`,
+      "-c", "service_tier=default",
       "--dangerously-bypass-approvals-and-sandbox",
       "--skip-git-repo-check",
       "--output-last-message", lastMessageFile,
