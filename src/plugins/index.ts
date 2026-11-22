@@ -16,6 +16,7 @@ const builtIn: Entry[] = [
   { name: "claude", load: () => import("./claude.ts").then((m) => m.claudePlugin) },
   { name: "grok", load: () => import("./grok.ts").then((m) => m.grokPlugin) },
   { name: "opencode", load: () => import("./opencode.ts").then((m) => m.opencodePlugin) },
+  { name: "antigravity", load: () => import("./antigravity.ts").then((m) => m.antigravityPlugin) },
 ];
 
 // Test seam: the fake plugin exists only when SUBTURN_FAKE_AGENT names a

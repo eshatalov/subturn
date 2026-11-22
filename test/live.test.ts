@@ -22,6 +22,7 @@ const cancelProbe = process.env["SUBTURN_LIVE_CANCEL"] === "1";
 const harness = process.env["SUBTURN_LIVE_HARNESS"] ?? "opencode";
 
 const cheapBundles: Record<string, { model: string; effort: string }> = {
+  antigravity: { model: "gemini-3.8-flash", effort: "low" },
   claude: { model: "claude-haiku-4-5-20251001", effort: "low" },
   codex: { model: "gpt-6-luna", effort: "low" },
   grok: { model: "grok-4.6", effort: "low" },
