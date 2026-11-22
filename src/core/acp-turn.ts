@@ -23,6 +23,9 @@ const SESSION_LOAD_TIMEOUT_MS = 120_000; // replay of a long history takes time
 
 export interface AcpTurnPlan {
   argv: string[];
+  /** Optional ACP `authenticate` methodId sent right after `initialize`
+   * (e.g. antigravity's `gemini-api-key` when authenticating via env var). */
+  authMethodId?: string;
   /** Applied after session/new or session/load; returns the
    * acknowledged-bundle record for ack.json, or null when the harness
    * echoes nothing. Throw to fail. Runs on resumed turns too — this is
@@ -160,6 +163,11 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
       throw new Error(`initialize: unexpected protocolVersion in ${JSON.stringify(initResult)}`);
     }
 
+    if (plan.authMethodId !== undefined) {
+      const authResult = await client.request("authenticate", { methodId: plan.authMethodId }, INITIALIZE_TIMEOUT_MS);
+      ctx.emit({ type: "authenticate_result", methodId: plan.authMethodId, result: authResult ?? null });
+    }
+
     let sessionNewResult: Record<string, unknown> | null = null;
     if (ctx.nativeSessionId !== undefined) {
       // Non-forking resume: same session id, conversation continues.
@@ -247,8 +255,8 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
 
     const stopReason = isRecord(promptResult) ? promptResult["stopReason"] : undefined;
     const finalText = finalChunks.join("");
-    if (stopReason === "cancelled") {
-      return { ok: false, error: `prompt stopReason=cancelled\nstderr tail:\n${spawned.stderrTail()}` };
+    if (stopReason === "cancelled" || stopReason === "refusal") {
+      return { ok: false, error: `prompt stopReason=${stopReason}\nstderr tail:\n${spawned.stderrTail()}` };
     }
     const outcome: LaunchOutcome = { ok: true, finalText };
     const usage = extractUsage(usageCandidates);
@@ -266,11 +274,12 @@ export async function runAcpTurn(ctx: LaunchContext, plan: AcpTurnPlan): Promise
     client.close();
     // Graceful: give the harness a moment to exit on stdin close, then kill
     // the group (adapter children can outlive the leader).
-    const exited = await Promise.race([
-      spawned.waitExit().then(() => true),
-      new Promise<false>((r) => setTimeout(r, 3000, false)),
+    const exit = await Promise.race([
+      spawned.waitExit(),
+      new Promise<null>((r) => setTimeout(r, 3000, null)),
     ]);
-    if (!exited) ctx.emit({ type: "close_forced_kill", pid: spawned.pid });
+    if (exit === null) ctx.emit({ type: "close_forced_kill", pid: spawned.pid });
+    else ctx.emit({ type: "exit", code: exit.code, signal: exit.signal });
     spawned.killGroup();
   }
 }

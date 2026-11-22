@@ -122,11 +122,14 @@ async function cmdStatus(): Promise<void> {
   // Human-only. Probes: version/auth/handshake — never a prompt.
   const { loadPlugins } = await import("../plugins/index.ts");
   const { resolvePin } = await import("../core/discovery.ts");
+  const plugins = await loadPlugins();
+  const col = Math.max(9, ...[...plugins.keys()].map((n) => n.length));
+  const pad = " ".repeat(col + 1);
   const rows: string[] = [];
-  for (const [name, plugin] of await loadPlugins()) {
+  for (const [name, plugin] of plugins) {
     const pin = await resolvePin(name, plugin.hints);
     if (pin === null) {
-      rows.push(`${name.padEnd(9)} not installed`);
+      rows.push(`${name.padEnd(col)} not installed`);
       continue;
     }
     const auth = await plugin.auth();
@@ -134,18 +137,18 @@ async function cmdStatus(): Promise<void> {
     if (auth.ok) {
       const models = await plugin.models(pin.binPath);
       modelsLine = models !== null
-        ? `\n${" ".repeat(10)}models: ${models.join(", ")}`
-        : `\n${" ".repeat(10)}models: (no cheap advertisement for this harness)`;
+        ? `\n${pad}models: ${models.join(", ")}`
+        : `\n${pad}models: (no cheap advertisement for this harness)`;
     }
     const others = pin.candidates.filter((c) => c.binPath !== pin.binPath);
     const othersLine = others.length > 0
-      ? `${" ".repeat(10)}also installed, older: ${others.map((c) => `${c.binPath} (${c.version})`).join(", ")}\n`
+      ? `${pad}also installed, older: ${others.map((c) => `${c.binPath} (${c.version})`).join(", ")}\n`
       : "";
     rows.push(
-      `${name.padEnd(9)} ${pin.version}\n` +
-      `${" ".repeat(10)}binary: ${pin.binPath}\n` +
+      `${name.padEnd(col)} ${pin.version}\n` +
+      `${pad}binary: ${pin.binPath}\n` +
       othersLine +
-      `${" ".repeat(10)}auth:   ${auth.ok ? "ok" : "NOT AUTHORIZED"} — ${auth.detail}` +
+      `${pad}auth:   ${auth.ok ? "ok" : "NOT AUTHORIZED"} — ${auth.detail}` +
       modelsLine,
     );
   }
